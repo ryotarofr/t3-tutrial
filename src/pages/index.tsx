@@ -8,6 +8,7 @@ import type { RouterOutputs } from "~/utils/api";
 import dayjs from "dayjs";
 import relatineTime from "dayjs/plugin/relativeTime"
 import Image from "next/image";
+import { Loading } from "~/components/Loading";
 
 dayjs.extend(relatineTime)
 
@@ -54,15 +55,31 @@ const PostsView = (props: PostWithUser) => {
   )
 }
 
-const Home: NextPage = () => {
-  // const hello = api.example.hello.useQuery({ text: "from tRPC" });
-  const user = useUser()
+const Feed = () => {
+  const { data, isLoading: postLoading } = api.posts.getAll.useQuery()
 
-  const { data, isLoading } = api.posts.getAll.useQuery()
-
-  if (isLoading) return <div>Loading...</div>
+  if (postLoading) return <Loading />
 
   if (!data) return <div>ポストデータはありません</div>
+
+  return (
+    <div>
+      {data?.map((fullPost) => (
+        <PostsView {...fullPost} key={fullPost.post.id} />
+      ))}
+    </div>
+  )
+}
+
+const Home: NextPage = () => {
+  // const hello = api.example.hello.useQuery({ text: "from tRPC" });
+  const { isLoaded: userLoaded, isSignedIn } = useUser()
+
+  api.posts.getAll.useQuery()
+
+  if (!userLoaded) return <div />
+
+
   return (
     <>
       <Head>
@@ -73,15 +90,12 @@ const Home: NextPage = () => {
       <main className="flex justify-center h-screen">
         <div className="w-full border-x md:max-w-2xl">
           <div>
-            {/* {!user.isSignedIn ? <SignInButton /> : <SignOutButton />} */}
-            {!user.isSignedIn && <SignInButton />}
-            {user.isSignedIn && <CreatePostWizard />}
+            {!isSignedIn && <SignInButton />}
+            {isSignedIn && <CreatePostWizard />}
 
-            {!!user.isSignedIn && <SignOutButton />}
+            {!!isSignedIn && <SignOutButton />}
           </div>
-          <div>
-            {data?.map((fullPost) => (<PostsView {...fullPost} key={fullPost.post.id} />))}
-          </div>
+          <Feed />
         </div>
       </main>
     </>
