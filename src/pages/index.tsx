@@ -9,11 +9,24 @@ import dayjs from "dayjs";
 import relatineTime from "dayjs/plugin/relativeTime"
 import Image from "next/image";
 import { Loading } from "~/components/Loading";
+import { useState } from "react";
 
 dayjs.extend(relatineTime)
 
 const CreatePostWizard = () => {
   const { user } = useUser()
+
+  const ctx = api.useContext()
+
+  const [input, setInput] = useState("")
+
+  const { mutate, isLoading: isPosting } = api.posts.create.useMutation({
+    onSuccess: () => {
+      setInput("")
+      // void(関数を明示的に無視)することでgetAllのキャッシュがクリアされリロードなしでInputを表示できる
+      void ctx.posts.getAll.invalidate()
+    }
+  })
 
   if (!user) return null
   return (
@@ -25,7 +38,15 @@ const CreatePostWizard = () => {
         width={64}
         height={64}
       />
-      <input placeholder="Type some emojis!" className="bg-transparent grow outline-none" />
+      <input
+        placeholder="Type some emojis!"
+        className="bg-transparent grow outline-none"
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        disabled={isPosting}
+      />
+      <button onClick={() => mutate({ content: input })}>Post</button>
     </div>
   )
 }
@@ -64,7 +85,7 @@ const Feed = () => {
 
   return (
     <div>
-      {data?.map((fullPost) => (
+      {data.map((fullPost) => (
         <PostsView {...fullPost} key={fullPost.post.id} />
       ))}
     </div>
