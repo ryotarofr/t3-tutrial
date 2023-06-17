@@ -4,6 +4,9 @@ import type { User } from '@clerk/nextjs/dist/types/server';
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { Ratelimit } from "@upstash/ratelimit";
+import {Redis} from "@upstash/redis"
+
 const filterUserForClient = (user: User) => {
   return {
     id: user.id,
@@ -11,6 +14,14 @@ const filterUserForClient = (user: User) => {
     profileImageUrl: user.profileImageUrl,
   }
 }
+
+// 1分間に3回のリクエストを許可する
+const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(3, "1 m"),
+  timeout: 1000, // 1 second
+  analytics: true
+});
 
 export const postsRouter = createTRPCRouter({
 
@@ -49,6 +60,9 @@ export const postsRouter = createTRPCRouter({
     content: z.string().min(1).max(160),
   })).mutation(async ({ ctx, input }) => {
     const authorId = ctx.userId
+
+    const {success} = await ratelimit.limit(authorId)
+    if(!success) throw new TRPCError({code: "TOO_MANY_REQUESTS"})
 
     const post = await ctx.prisma.post.create({
       data: {
