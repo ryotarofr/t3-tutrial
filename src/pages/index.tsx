@@ -10,6 +10,7 @@ import relatineTime from "dayjs/plugin/relativeTime"
 import Image from "next/image";
 import { Loading } from "~/components/Loading";
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 
 dayjs.extend(relatineTime)
 
@@ -25,6 +26,14 @@ const CreatePostWizard = () => {
       setInput("")
       // void(関数を明示的に無視)することでgetAllのキャッシュがクリアされリロードなしでInputを表示できる
       void ctx.posts.getAll.invalidate()
+    },
+    onError: (e) => {
+      const errorMessage = e.data?.zodError?.fieldErrors.content;
+      if (errorMessage && errorMessage[0]) {
+        toast.error(errorMessage[0])
+      } else {
+        toast.error("入力に誤りがあります、もう一度お試しください。")
+      }
     }
   })
 
@@ -44,9 +53,26 @@ const CreatePostWizard = () => {
         type="text"
         value={input}
         onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault()
+            if (input !== "") {
+              mutate({ content: input })
+            }
+          }
+        }}
         disabled={isPosting}
       />
-      <button onClick={() => mutate({ content: input })}>Post</button>
+      {input !== "" && (<button
+        disabled={isPosting}
+        onClick={() => mutate({ content: input })}>
+        Post
+      </button>)}
+      {isPosting && (
+        <div className="flex items-center justify-center">
+          <Loading />
+        </div>
+      )}
     </div>
   )
 }
